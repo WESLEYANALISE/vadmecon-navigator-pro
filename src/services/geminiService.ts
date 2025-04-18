@@ -29,6 +29,31 @@ export async function getArticleExplanation(articleNumber: string, articleConten
   }
 }
 
+export async function summarizeArticle(articleNumber: string, articleContent: string): Promise<string | null> {
+  try {
+    const prompt = `Resuma o seguinte artigo jurídico em no máximo 5 linhas, destacando apenas os pontos essenciais:\n${articleContent}`;
+    
+    const summary = await fetchGeminiResponse(prompt);
+    return summary;
+  } catch (error) {
+    console.error("Error summarizing article:", error);
+    toast.error("Erro ao resumir o artigo");
+    return null;
+  }
+}
+
+export async function askQuestion(articleNumber: string, articleContent: string, question: string): Promise<string | null> {
+  try {
+    const prompt = `Com base no seguinte artigo jurídico:\n"${articleContent}"\n\nResponda à seguinte pergunta de forma clara e concisa:\n${question}`;
+    
+    const answer = await fetchGeminiResponse(prompt);
+    return answer;
+  } catch (error) {
+    console.error("Error asking question:", error);
+    return null;
+  }
+}
+
 async function fetchGeminiResponse(prompt: string): Promise<string | null> {
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {

@@ -5,6 +5,25 @@ const API_KEY = "AIzaSyDvJ23IolKwjdxAnTv7l8DwLuwGRZ_tIR8"; // This is a public A
 const RANGE_A = "A:A"; // Article numbers
 const RANGE_B = "B:B"; // Article content
 
+// New function to fetch all sheet names (tabs)
+export async function fetchSheetNames(): Promise<string[]> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sheet names: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.sheets.map((sheet: any) => sheet.properties.title);
+  } catch (error) {
+    console.error("Error fetching sheet names:", error);
+    return [];
+  }
+}
+
 export async function fetchArticleNumbers(): Promise<string[]> {
   try {
     const response = await fetch(
@@ -28,12 +47,15 @@ export async function fetchArticleNumbers(): Promise<string[]> {
   }
 }
 
-export async function fetchArticleContent(articleNumber?: string): Promise<Article[]> {
+// Updated to support fetching from specific sheet
+export async function fetchArticleContent(articleNumber?: string, sheetName?: string): Promise<Article[]> {
   try {
+    const sheetPrefix = sheetName ? `${sheetName}!` : '';
+    
     // Fetch both columns
     const [numbersResponse, contentResponse] = await Promise.all([
-      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE_A}?key=${API_KEY}`),
-      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE_B}?key=${API_KEY}`)
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetPrefix}${RANGE_A}?key=${API_KEY}`),
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetPrefix}${RANGE_B}?key=${API_KEY}`)
     ]);
 
     if (!numbersResponse.ok || !contentResponse.ok) {
@@ -63,7 +85,8 @@ export async function fetchArticleContent(articleNumber?: string): Promise<Artic
       articles.push({
         number: numValue,
         content: contentValue,
-        isTitle
+        isTitle,
+        sheetName: sheetName || "default"
       });
     }
 
@@ -78,19 +101,37 @@ export async function fetchArticleContent(articleNumber?: string): Promise<Artic
   }
 }
 
-export async function searchArticles(query: string): Promise<Article[]> {
+// Updated search to support searching across sheets
+export async function searchArticles(query: string, sheetName?: string): Promise<Article[]> {
   try {
-    const articles = await fetchArticleContent();
-    
-    // If query is a number, search by article number
-    if (!isNaN(Number(query))) {
-      return articles.filter(article => article.number === query);
+    // If sheetName is provided, search only in that sheet
+    if (sheetName) {
+      const articles = await fetchArticleContent(undefined, sheetName);
+      
+      // If query is a number, search by article number
+      if (!isNaN(Number(query))) {
+        return articles.filter(article => article.number === query);
+      }
+      
+      // Otherwise, search by content
+      return articles.filter(article => 
+        article.content.toLowerCase().includes(query.toLowerCase())
+      );
     }
     
-    // Otherwise, search by content
-    return articles.filter(article => 
-      article.content.toLowerCase().includes(query.toLowerCase())
+    // If no sheetName is provided, get all sheet names and search across all
+    const sheetNames = await fetchSheetNames();
+    const allResults = await Promise.all(
+      sheetNames.map(async name => {
+        const articles = await fetchArticleContent(undefined, name);
+        return articles.filter(article => 
+          article.number === query || 
+          article.content.toLowerCase().includes(query.toLowerCase())
+        );
+      })
     );
+    
+    return allResults.flat();
   } catch (error) {
     console.error("Error searching articles:", error);
     return [];

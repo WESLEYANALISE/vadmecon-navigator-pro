@@ -3,6 +3,9 @@ export interface Article {
   number: string;
   content: string;
   isTitle?: boolean;
+  sheetName?: string;
+  tags?: string[];
+  lastRead?: number; // timestamp
 }
 
 export interface ArticleComment {
@@ -41,4 +44,12 @@ export interface ExplanationResponse {
   formal: string;
   technical: string;
   example: string;
+  summary?: string; // Added for article summarization
+}
+
+export interface ArticleCrossReference {
+  fromArticle: string;
+  toArticle: string;
+  type: 'related' | 'complementary' | 'revoked' | 'amended';
+  description?: string;
 }
