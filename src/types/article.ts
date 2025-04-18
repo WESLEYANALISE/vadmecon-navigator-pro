@@ -52,4 +52,10 @@ export interface ArticleCrossReference {
   toArticle: string;
   type: 'related' | 'complementary' | 'revoked' | 'amended';
   description?: string;
+  sheetName?: string; // Added to support cross-sheet references
+}
+
+// Nova interface para representar um banco de dados de referências cruzadas
+export interface CrossReferencesDB {
+  [articleNumber: string]: ArticleCrossReference[];
 }
